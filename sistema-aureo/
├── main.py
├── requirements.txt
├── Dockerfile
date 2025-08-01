@@ -1,0 +1,4 @@
+sistema-aureo/
+├── main.py
+├── requirements.txt
+├── Dockerfile
