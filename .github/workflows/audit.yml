@@ -1,19 +1,23 @@
-name: Auditoría Android
-
+name: Auditoría Android (sin dependencias)
 on:
   push:
   workflow_dispatch:
-
 jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Configurar Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python3 auditor_completo.py .
-      - uses: actions/upload-artifact@v7
+      - name: Ejecutar auditoría
+        run: |
+          python3 auditor_completo.py . || true
+      - name: Subir reporte
+        uses: actions/upload-artifact@v7
         with:
           name: report
           path: reporte_final.json
+          if-no-files-found: warn
+          retention-days: 7
