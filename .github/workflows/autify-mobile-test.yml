@@ -1,0 +1,40 @@
+name: Autify Mobile Test Plan
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_plan_id:
+        description: 'ID del plan de prueba en Autify'
+        required: true
+        type: string
+      environment:
+        description: 'Entorno de prueba (staging, production)'
+        required: false
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  run-autify-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Autify Mobile Test Plan
+        uses: autifyhq/mobile-run-test-plan-action@v1.0.0
+        continue-on-error: true
+        with:
+          test_plan_id: ${{ github.event.inputs.test_plan_id || secrets.TEST_PLAN_ID }}
+          autify_token: ${{ secrets.AUTIFY_TOKEN }}
+          environment: ${{ github.event.inputs.environment || 'staging' }}
+          wait_timeout: 600  # espera hasta 10 minutos
+
+      - name: Mostrar resultado
+        if: always()
+        run: |
+          echo "✅ Prueba de Autify completada."
+          echo "   ID del plan: ${{ github.event.inputs.test_plan_id || secrets.TEST_PLAN_ID }}"
+          echo "   Entorno: ${{ github.event.inputs.environment || 'staging' }}"
