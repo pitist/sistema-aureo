@@ -1,0 +1,12 @@
+name: Generic Test
+on: [push, workflow_dispatch]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Mostrar información del repositorio
+        run: |
+          echo "✅ GitHub Actions funcionando en ${{ github.repository }}"
+          echo "📂 Archivos en el repositorio:"
+          ls -la
