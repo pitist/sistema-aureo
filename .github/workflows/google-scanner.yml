@@ -1,0 +1,29 @@
+name: Google Scanner (test + auth + osv-cli)
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Google Actions Testing
+        uses: google-github-actions/test-action@v2.0.1
+        continue-on-error: true
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        continue-on-error: true
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Instalar OSV Scanner (CLI)
+        run: npm install -g osv-scanner
+        continue-on-error: true
+
+      - name: Ejecutar OSV Scanner
+        run: osv-scanner --config=osv-scanner.toml ./...
+        continue-on-error: true
