@@ -1,23 +1,23 @@
-name: Auditoría Android (sin dependencias)
-on:
-  push:
-  workflow_dispatch:
+name: Audit Android
+on: [push, workflow_dispatch]
 jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Configurar Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Ejecutar auditoría
-        run: |
-          python3 auditor_completo.py . || true
-      - name: Subir reporte
-        uses: actions/upload-artifact@v7
+      - run: |
+          if [ -f auditor_completo.py ]; then
+            python3 auditor_completo.py . || true
+          else
+            echo "⚠️ auditor_completo.py no encontrado. Descargando..."
+            curl -O https://raw.githubusercontent.com/pitist/lean_audit_project/main/auditor_completo.py
+            python3 auditor_completo.py . || true
+          fi
+      - uses: actions/upload-artifact@v7
         with:
           name: report
           path: reporte_final.json
           if-no-files-found: warn
-          retention-days: 7
