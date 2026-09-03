@@ -1,0 +1,7 @@
+# Configuración para OSV Scanner
+# Más info: https://github.com/google/osv-scanner
+
+[[package]]
+  name = "pip"
+  version = "23.0.1"
+  ecosystem = "PyPI"
