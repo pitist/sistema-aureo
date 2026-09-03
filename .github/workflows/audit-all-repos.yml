@@ -1,0 +1,121 @@
+name: Auditar y Mejorar todos mis repos (v2)
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  audit-all:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar dependencias
+        run: pip install PyGithub
+
+      - name: Obtener lista de repositorios
+        run: |
+          python -c "
+          import os, json
+          from github import Github, Auth
+          token = os.environ['SECRET_TOKEN']
+          if not token:
+              print('❌ ERROR: Secret Yave no configurado')
+              exit(1)
+          g = Github(auth=Auth.Token(token))
+          user = g.get_user()
+          repos = [repo.name for repo in user.get_repos() if not repo.fork and repo.name != 'lean_audit_project']
+          with open('repos.json', 'w') as f:
+              json.dump(repos, f)
+          print(f'✅ Se encontraron {len(repos)} repositorios')
+          "
+        env:
+          SECRET_TOKEN: ${{ secrets.Yave }}
+        shell: bash
+
+      - name: Auditar y corregir cada repositorio
+        run: |
+          python -c "
+          import os, json, subprocess, sys, time
+          from pathlib import Path
+
+          token = os.environ['SECRET_TOKEN']
+          if not token:
+              print('❌ Token no disponible')
+              sys.exit(1)
+
+          with open('repos.json') as f:
+              repos = json.load(f)
+
+          if not repos:
+              print('ℹ️  No hay repositorios para auditar.')
+              with open('reporte_final.json', 'w') as f:
+                  json.dump({'meta': {'total':0, 'errors':0}}, f)
+              sys.exit(0)
+
+          for repo in repos:
+              print(f'📁 Procesando {repo}...')
+              repo_url = f'https://{token}@github.com/{os.environ["GITHUB_REPOSITORY_OWNER"]}/{repo}.git'
+              try:
+                  Path(f'./repos/{repo}').mkdir(parents=True, exist_ok=True)
+                  subprocess.run(['git', 'clone', repo_url, f'./repos/{repo}'], check=True, capture_output=True)
+              except Exception as e:
+                  print(f'❌ Error clonando {repo}: {e}')
+                  continue
+
+              repo_path = os.path.abspath(f'./repos/{repo}')
+              print(f'🔍 Auditing {repo} en {repo_path}')
+              try:
+                  result = subprocess.run(
+                      ['python3', 'auditor_completo.py', repo_path],
+                      capture_output=True, text=True, timeout=180
+                  )
+                  print(result.stdout)
+                  if result.stderr:
+                      print(f'⚠️  Errores: {result.stderr}')
+              except Exception as e:
+                  print(f'❌ Error auditoría en {repo}: {e}')
+                  continue
+
+              report_path = 'reporte_final.json'
+              if os.path.exists(report_path):
+                  with open(report_path, 'r') as f:
+                      import json as jsonlib
+                      data = jsonlib.load(f)
+                      total_files = data.get('meta', {}).get('total', 0)
+                      errors = data.get('meta', {}).get('errors', 0)
+                      print(f'📊 {repo}: {total_files} archivos, {errors} errores')
+                      if errors > 0:
+                          print(f'🔍 Se encontraron {errors} errores en {repo}')
+                          fix_result = subprocess.run(['python3', 'auto_fix.py', repo_path], capture_output=True, text=True)
+                          print(fix_result.stdout)
+                          os.chdir(repo_path)
+                          status = subprocess.run(['git', 'status', '--porcelain'], capture_output=True, text=True)
+                          if status.stdout:
+                              subprocess.run(['git', 'config', 'user.name', 'auditor-agent'], check=True)
+                              subprocess.run(['git', 'config', 'user.email', 'auditor@bot.com'], check=True)
+                              subprocess.run(['git', 'add', '.'], check=True)
+                              subprocess.run(['git', 'commit', '-m', 'Auto-fix: px→dp, Left/Right→Start/End'], check=True)
+                              subprocess.run(['git', 'push', 'origin', f'HEAD:fix/auto-audit'], check=False)
+                              subprocess.run(['gh', 'pr', 'create', '--title', 'Auto-fix de auditoría', '--body', 'Correcciones automáticas generadas.', '--base', 'main', '--head', 'fix/auto-audit'], check=False)
+                          os.chdir('../..')
+                      else:
+                          print(f'✅ {repo} sin errores.')
+              else:
+                  print(f'⚠️ No se generó reporte para {repo}')
+          "
+        env:
+          SECRET_TOKEN: ${{ secrets.Yave }}
+          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
+        shell: bash
+
+      - name: Subir artefacto
+        uses: actions/upload-artifact@v7
+        with:
+          name: report
+          path: reporte_final.json
+          if-no-files-found: warn
+          retention-days: 7
