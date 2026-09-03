@@ -1,0 +1,32 @@
+name: Google Actions (Testing + Auth + OSV Scanner)
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  google:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 1. Google Actions Testing
+      - name: Google Actions Testing
+        uses: google-github-actions/test-action@v2.0.1
+        continue-on-error: true
+
+      # 2. Autenticación en Google Cloud (opcional, usa secret GCP_SA_KEY)
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        continue-on-error: true
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      # 3. OSV Scanner (escanea vulnerabilidades en dependencias)
+      - name: OSV Scanner
+        uses: google/osv-scanner-action@v2.5.1
+        continue-on-error: true
+        with:
+          scan-args: |-
+            --config=osv-scanner.toml
+            ./...
