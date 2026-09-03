@@ -1,0 +1,16 @@
+name: Audit
+on: [push, workflow_dispatch]
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: |
+          curl -O https://raw.githubusercontent.com/pitist/lean_audit_project/main/auditor_completo.py
+          python3 auditor_completo.py . || true
+      - uses: actions/upload-artifact@v7
+        with:
+          name: report
+          path: reporte_final.json
